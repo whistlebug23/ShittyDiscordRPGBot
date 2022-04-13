@@ -1,10 +1,18 @@
 import random
-import os
+# import os
 import discord
 from discord.ext import commands
 import sqlite3
 
 db_path = "CorporateQuestsGameData.db"
+con = sqlite3.connect(db_path)
+cursor = con.cursor()
+# con.close()
+
+# ---------------------------
+# FUNCTIONS
+# ---------------------------
+
 
 # ---------------------------
 # PLAYER CLASS
@@ -17,25 +25,25 @@ class CQPlayer:
         self.player_health = player_health
 
     def print_health(self):
-        print(f"{self.player_name}\'s health is {self.player_health}")
+        print(f"{self.player_name}'s health is {self.player_health}")
 
 
-p1 = CQPlayer(1, "Carl", "Nekro", 100)
+# p1 = CQPlayer(1, "Carl", "Nekro", 100)
 
 
-print(p1.player_name)
-print(p1.player_health)
-p1.print_health()
+# print(p1.player_name)
+# print(p1.player_health)
+# p1.print_health()
 
-with open('bot_token.txt', 'r') as file:
+with open("bot_token.txt", "r") as file:
     TOKEN = file.read().rstrip()
 
-GUILD = 'Discord Bot Testing'
+GUILD = "Discord Bot Testing"
 
 intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 intents.members = True
-bot = commands.Bot(command_prefix=('!', '/', '*'), intents=intents)
+bot = commands.Bot(command_prefix=("!", "/", "*"), intents=intents)
 
 # These are text channels where combat cannot occur
 safe_channels = [962738344880668702, 962773311606112266]
@@ -56,37 +64,33 @@ def heal_prefix(ctx):
     return ctx.prefix == "*"
 
 
-sql_user = "INSERT OR IGNORE INTO CQPlayers values(?, ?, ?, ?);"
-
-
 @bot.event
 async def on_ready():
-    print(f'{bot.user.name} has connected to Discord!')
+    print(f"{bot.user.name} has connected to Discord!")
+    sql_user = "INSERT OR IGNORE INTO CQPlayers values(?, ?, ?, ?);"
     for guild in bot.guilds:
         for member in guild.members:
             if member.bot == 0:
-                sql_params = (str(member.id), str(member.name), str(member.top_role), 45)
+                sql_params = (int(member.id), str(member.name), str(member.top_role), 45)
 
-                print(member.id)
-                print(member.name)
-                print(member.top_role)
+                # print(member.id)
+                # print(member.name)
+                # print(member.top_role)
 
-                con = sqlite3.connect(os.path.abspath(db_path))
-                cursor = con.cursor()
                 cursor.execute(sql_user, sql_params)
                 con.commit()
-                con.close()
+
             else:
                 return
 
 
-@bot.command(name='roll_dice', help='Simulates rolling dice.')
+@bot.command(name="roll_dice", help="Simulates rolling dice.")
 async def roll(ctx, number_of_dice: int, number_of_sides: int):
     dice = [
         str(random.choice(range(1, number_of_sides + 1)))
         for _ in range(number_of_dice)
     ]
-    await ctx.send(', '.join(dice))
+    await ctx.send(", ".join(dice))
 
 
 # ---------------------------
@@ -97,87 +101,80 @@ async def roll(ctx, number_of_dice: int, number_of_sides: int):
 # ---------------------------
 # CHANGE CLASS MECHANICS
 # ---------------------------
-@bot.command(name='HarryWiz', help='Grants user Harry Wizard Role')
-@commands.check(normal_prefix)
-async def addrole(ctx):
-    if ctx.channel.id == 962738344880668702:  # Check to see if the user is in The Stronghold
-        member = ctx.message.author
+sql_user_role_updt = "UPDATE CQPlayers SET PlayerClass = ? WHERE DiscordID = ?;"
+
+
+async def update_player_class(ctx_in, class_name):
+    if ctx_in.channel.id == 962738344880668702:  # Check to see if the user is in The Stronghold
+        member = ctx_in.message.author
         for i in member.roles:
             try:
                 await member.remove_roles(i)
             except:
                 print(f"Can't remove the role {i}")
-        role = discord.utils.get(member.guild.roles, name="Harry Wizard")
+        role = discord.utils.get(member.guild.roles, name=class_name)
         await member.add_roles(role, atomic=True)
+        sql_user_role_updt_params = (str(class_name), int(member.id))
+        cursor.execute(sql_user_role_updt, sql_user_role_updt_params)
+        con.commit()
     else:
-        await ctx.send("You must be in The Stronghold to change classes!")
+        await ctx_in.send("You must be in The Stronghold to change classes!")
 
 
-@bot.command(name='Orx', help='Grants user Orx Role')
+@bot.command(name="HarryWiz", help="Grants user Harry Wizard Role")
 @commands.check(normal_prefix)
-async def addrole(ctx):
-    if ctx.channel.id == 962738344880668702:  # Check to see if the user is in The Stronghold
-        member = ctx.message.author
-        for i in member.roles:
-            try:
-                await member.remove_roles(i)
-            except:
-                print(f"Can't remove the role {i}")
-        role = discord.utils.get(member.guild.roles, name="Orx")
-        await member.add_roles(role, atomic=True)
-    else:
-        await ctx.send("You must be in The Stronghold to change classes!")
+async def add_role(ctx):
+    user_role = "Harry Wizard"
+    await update_player_class(ctx, user_role)
 
 
-@bot.command(name='Nekro', help='Grants user Nekromancer Role')
+@bot.command(name="Orx", help="Grants user Orx Role")
 @commands.check(normal_prefix)
-async def addrole(ctx):
-    if ctx.channel.id == 962738344880668702:  # Check to see if the user is in The Stronghold
-        member = ctx.message.author
-        for i in member.roles:
-            try:
-                await member.remove_roles(i)
-            except:
-                print(f"Can't remove the role {i}")
-        role = discord.utils.get(member.guild.roles, name="Nekromancer")
-        await member.add_roles(role, atomic=True)
-    else:
-        await ctx.send("You must be in The Stronghold to change classes!")
+async def add_role(ctx):
+    user_role = "Orx"
+    await update_player_class(ctx, user_role)
+
+
+@bot.command(name="Nekro", help="Grants user Nekromancer Role")
+@commands.check(normal_prefix)
+async def add_role(ctx):
+    user_role = "Nekromancer"
+    await update_player_class(ctx, user_role)
 
 # ---------------------------
 # COMBAT MECHANICS
 # ---------------------------
-@bot.command(name='notmyprob', help='For when you do something that\'s not your job (1d4).')
+@bot.command(name="notmyprob", help="For when you do something that's not your job (1d4).")
 @commands.check(combat_prefix)
 async def combat_notmyproblem(ctx):
     if ctx.channel.id in safe_channels:  # Check to see if the user is in a safe text channel
         await ctx.send("There be no combat in here! Take that outside.")
     else:
         notmyproblem_dmg = str(*random.choices(range(1, 5), weights=(40, 35, 20, 5)))
-        await ctx.send('Did something that was not your job? WAP-' + notmyproblem_dmg)
+        await ctx.send("Did something that was not your job? WAP-" + notmyproblem_dmg)
 
-@bot.command(name='coworker_aggro', help='For when your co-worker drags you into something (1d6).')
+@bot.command(name="coworker_aggro", help="For when your co-worker drags you into something (1d6).")
 @commands.check(combat_prefix)
 async def combat_cwkraggro(ctx):
     if ctx.channel.id in safe_channels:  # Check to see if the user is in a safe text channel
         await ctx.send("There be no combat in here! Take that outside.")
     else:
         cwkraggro_dmg = str(*random.choices(range(1, 7), weights=(10, 15, 25, 25, 15, 10)))
-        await ctx.send('Got dragged into something? WAP-' + cwkraggro_dmg)
+        await ctx.send("Got dragged into something? WAP-" + cwkraggro_dmg)
 
 # ---------------------------
 # HEALING MECHANICS
 # ---------------------------
-@bot.command(name='ale', help='Imbibe some ale for what ails you (1d6).')
+@bot.command(name="ale", help="Imbibe some ale for what ails you (1d6).")
 @commands.check(heal_prefix)
 async def heal_ale(ctx):
     if ctx.channel.id == 962738344880668702:  # Check to see if the user is in the Stronghold
-        await ctx.send("You can\'t drink here, that\'s what the Tavern is for.")
+        await ctx.send("You can't drink here, that's what the Tavern is for.")
     else:
         if ctx.channel.id in combat_channels:
-            await ctx.send("I mean, don\'t drink too much out here...")
+            await ctx.send("I mean, don't drink too much out here...")
         ale_heal_amt = str(*random.choices(range(1, 7), weights=(25, 20, 20, 20, 10, 5)))
-        await ctx.send('Take a swig, it\'ll help. Probably. WAP+' + ale_heal_amt)
+        await ctx.send("Take a swig, it'll help. Probably. WAP+" + ale_heal_amt)
 
 
 bot.run(TOKEN)
